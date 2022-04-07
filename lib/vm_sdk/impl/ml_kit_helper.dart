@@ -46,6 +46,7 @@ Map convertFaceToMap(Face face) {
 Map convertImageLabelToMap(ImageLabel label) {
   final Map map = {};
 
+  // confidence, label
   map["c"] = double.parse(label.confidence.toStringAsFixed(4));
   map["id"] = label.index;
 
@@ -58,11 +59,13 @@ Future<Map> detectObjects(String path) async {
   try {
     final InputImage inputImage = InputImage.fromFilePath(path);
 
+    // 입력된 프레임 1장에 대한 Face Detection 실행, JSON 데이터로 변환
     final detectedFaceList = await faceDetector.processImage(inputImage);
     for (final face in detectedFaceList) {
       faceList.add(convertFaceToMap(face));
     }
 
+    // 입력된 프레임 1장에 대한 Image Labeling 실행, JSON 데이터로 변환
     final detectedLabelList = await imageLabeler.processImage(inputImage);
     for (final label in detectedLabelList) {
       labelList.add(convertImageLabelToMap(label));
@@ -73,6 +76,7 @@ Future<Map> detectObjects(String path) async {
 }
 
 Future<List<Map>> runDetect(List<String> frames) async {
+  // 모든 프레임을 비동기 + 병렬로 detection을 실행합니다.
   List<Future<Map>> futures = [];
   for (final frame in frames) {
     futures.add(detectObjects(frame));
@@ -84,6 +88,7 @@ Future<List<Map>> runDetect(List<String> frames) async {
 Future<String?> extractData(MediaData data) async {
   String? result;
 
+  // 전처리 이전 폴더 설정
   final String filename = basename(data.absolutePath);
   final String extname = extension(filename);
   final int index = filename.indexOf(extname);
@@ -97,6 +102,10 @@ Future<String?> extractData(MediaData data) async {
   }
   await dir.create(recursive: true);
 
+  // 미디어의 해상도를 480 픽셀 이하로 조정합니다.
+  // 원본 1920 * 1080 => 480 * 270
+  // 원본 1080 * 1080 => 480 * 480
+  // 원본 1080 * 1350 => 384 * 480
   int scaledWidth = -1;
   int scaledHeight = -1;
 
@@ -110,6 +119,12 @@ Future<String?> extractData(MediaData data) async {
     if (scaledWidth % 2 == 1) scaledWidth += 1;
   }
 
+  // 이미지는 해상도만 조정하여 출력합니다.
+  // Output : 1.jpg
+  //
+  // 비디오는 프레임레이트를 4프레임으로 고정 후, Image Sequence로 출력합니다.
+  // Input : 13.5초 길이의 동영상
+  // Output : 1.jpg ~ 54.jpg (총 54프레임)
   final List<String> frames = [];
   if (await ffMpegManager.execute([
     "-i",
@@ -124,6 +139,7 @@ Future<String?> extractData(MediaData data) async {
     }
   }
 
+  // Image Labeling, Face Detection을 실행합니다.
   result = json.encode({"fps": convertFrame, "r": await runDetect(frames)});
   await dir.delete(recursive: true);
 

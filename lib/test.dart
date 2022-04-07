@@ -13,12 +13,14 @@ class TestWidget extends StatelessWidget {
   final VMSDKWidget _vmsdkWidget = VMSDKWidget();
 
   void _run() async {
+    final String setname = "set1";
+
     if (!_vmsdkWidget.isInitialized) {
       await _vmsdkWidget.initialize();
     }
 
     final filelist = json.decode(
-        await rootBundle.loadString("assets/_test/mediajson-joined/set1.json"));
+        await rootBundle.loadString("assets/_test/mediajson-joined/$setname.json"));
 
     List<MediaData> mediaList = [];
 
@@ -39,7 +41,7 @@ class TestWidget extends StatelessWidget {
       if (file.containsKey("duration")) duration = file["duration"] * 1.0;
 
       final writedFile =
-          await copyAssetToLocalDirectory("_test/set1/$filename");
+          await copyAssetToLocalDirectory("_test/$setname/$filename");
       mediaList.add(MediaData(writedFile.path, type, width, height, duration,
           createDate, gpsString, mlkitDetected));
     }
@@ -47,7 +49,7 @@ class TestWidget extends StatelessWidget {
     final String? videoPath = await _vmsdkWidget.generateVideo(
         mediaList,
         EMusicStyle.styleB,
-        false,
+        true,
         // ["THIS IS", "VIMON V-LOG"],
         ["THIS IS VIMON V-LOG"],
         (status, progress, estimatedTime) {});
